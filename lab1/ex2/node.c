@@ -7,6 +7,7 @@
 
 #include "node.h"
 #include <stdlib.h>
+#include <stdio.h>
 
 
 // Add in your implementation below to the respective functions
@@ -22,33 +23,60 @@ void insert_node_at(list *lst, int index, int data) {
     (*newNode).data = data;
     if(lst->head == NULL) {
         lst->head = newNode;
-    }
-    else {
+    } else if(index == 0) {
+        node *temp = lst->head;
+        lst->head = newNode;
+        (*newNode).next = temp;
+    } else {
         int i;
         node *curr = lst->head;
         int last = 0;
-        for(i = 0; i < index; i++) {
-            if((curr == NULL) | (i == index - 1)) {
-                curr = newNode;
+        for(i = 0; i < index - 1; i++) {
+            if((*curr).next == NULL) {
                 last = 1;
                 break;
             }
             curr = (*curr).next;
         }
-        if(last = 0) {
-            
+        if(last == 0) {
+            node *n = (*curr).next;
+            (*curr).next = newNode;
+            (*newNode).next = n;
+        } else {
+            (*curr).next == newNode;
         }
     }
-
-
+    return;
 }
 
 // Deletes node at index (counting from head starting from 0).
 // Note: index is guarenteed to be valid.
 void delete_node_at(list *lst, int index) {
-
-
-
+    printf("hey ");
+    if(index == 0) {
+        printf("0 ");
+        if((*(lst->head)).next == NULL) {
+            lst->head = NULL;
+        } else {
+            node* p = (*(lst->head)).next;
+            lst->head = p;
+            free((*(lst->head)).next);
+        }
+    } else {
+        printf("not0 ");
+        node* curr = lst->head;
+        int i;
+        for(i = 1; i < index; i++) {
+            curr = (*curr).next;
+        }
+        if((*((*curr).next)).next == NULL) {
+            (*curr).next = NULL;
+        } else {
+            node* del = (*((*curr).next)).next;
+            (*curr).next = del;
+        }
+    }
+    return;
 }
 
 // Search list by the given element.
