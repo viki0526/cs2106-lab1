@@ -26,11 +26,17 @@ void insert_node_at(list *lst, int index, int data) {
     else {
         int i;
         node *curr = lst->head;
-        
+        int last = 0;
         for(i = 0; i < index; i++) {
-            if( == NULL) {
+            if((curr == NULL) | (i == index - 1)) {
+                curr = newNode;
+                last = 1;
                 break;
-            }   
+            }
+            curr = (*curr).next;
+        }
+        if(last = 0) {
+            
         }
     }
 
