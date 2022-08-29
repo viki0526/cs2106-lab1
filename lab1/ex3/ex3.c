@@ -1,9 +1,9 @@
 /*************************************
-* Lab 1 Exercise 3
-* Name:
-* Student No:
-* Lab Group:
-*************************************/
+ * Lab 1 Exercise 3
+ * Name:
+ * Student No:
+ * Lab Group:
+ *************************************/
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -27,10 +27,10 @@
 #define LIST_LEN 6
 #define MAP 7
 
-
-
-int main(int argc, char *argv[]) {
-    if (argc != 2) {
+int main(int argc, char *argv[])
+{
+    if (argc != 2)
+    {
         fprintf(stderr, "Error: expecting 1 argument, %d found\n", argc - 1);
         exit(1);
     }
@@ -42,9 +42,5 @@ int main(int argc, char *argv[]) {
     // (You may leave the function empty if you do not need it)
     update_functions();
 
-    
     // Rest of code logic here
-    
 }
-
-

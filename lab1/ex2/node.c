@@ -52,18 +52,15 @@ void insert_node_at(list *lst, int index, int data) {
 // Deletes node at index (counting from head starting from 0).
 // Note: index is guarenteed to be valid.
 void delete_node_at(list *lst, int index) {
-    printf("hey ");
     if(index == 0) {
-        printf("0 ");
         if((*(lst->head)).next == NULL) {
             lst->head = NULL;
         } else {
             node* p = (*(lst->head)).next;
             lst->head = p;
-            free((*(lst->head)).next);
+            // free(lst->head);
         }
     } else {
-        printf("not0 ");
         node* curr = lst->head;
         int i;
         for(i = 1; i < index; i++) {
@@ -83,22 +80,46 @@ void delete_node_at(list *lst, int index) {
 // If element not present, return -1 else return the index. If lst is empty return -2.
 //Printing of the index is already handled in ex2.c
 int search_list(list *lst, int element) {
+    if(lst->head == NULL) {
+        return -2;
+    }
+    node* curr = lst->head;
+    int index = 0;
+    while(curr != NULL) {
+        if((*curr).data == element) {
+            return index;
+        }
+        curr = curr->next;
+        index++;
+    }
 
-
-
+    return -1;
 
 }
 
 // Reverses the list with the last node becoming the first node.
 void reverse_list(list *lst) {
-
-
-
+    node* curr = lst->head;
+    node* prev = NULL;
+    node* next = NULL;
+    while(curr != NULL) {
+        next = curr->next;
+        curr->next = prev;
+        prev = curr;
+        curr = next;
+    }
+    lst->head = prev;
 }
 
 // Resets list to an empty state (no nodes) and frees
 // any allocated memory in the process
 void reset_list(list *lst) {
-
-
+    node* curr;
+    node* h = lst->head;
+    while(h != NULL) {
+        curr = h;
+        h = h->next;
+        free(curr);
+    }
+    lst->head = NULL;
 }
