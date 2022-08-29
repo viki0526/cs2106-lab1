@@ -1,11 +1,12 @@
 /*************************************
 * Lab 1 Exercise 2
-* Name:
-* Student No:
-* Lab Group:
+* Name: Vikrant Prakash
+* Student No: A0227630L
+* Lab Group: 3
 *************************************/
 
 #include "node.h"
+#include <stdlib.h>
 
 
 // Add in your implementation below to the respective functions
@@ -16,7 +17,22 @@
 // starting at 0).
 // Note: index is guaranteed to be valid.
 void insert_node_at(list *lst, int index, int data) {
-
+    node *newNode;
+    newNode = (node *) malloc(sizeof(node));
+    (*newNode).data = data;
+    if(lst->head == NULL) {
+        lst->head = newNode;
+    }
+    else {
+        int i;
+        node *curr = lst->head;
+        
+        for(i = 0; i < index; i++) {
+            if( == NULL) {
+                break;
+            }   
+        }
+    }
 
 
 }
