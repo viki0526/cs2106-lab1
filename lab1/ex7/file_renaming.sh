@@ -35,13 +35,48 @@
 # Renaming to new prefix #
 
 
-echo ""
+echo "Enter prefix (only alphabets):"
+
+j=0
+while [ $j -lt 5 ]
+do
+read prefix
+if [[ "${prefix}" =~ [^a-zA-Z] ]]; then
+   echo INVALID
+   echo "Please enter a valid prefix [a-z A-Z]:"
+else
+    break
+fi
+done
+
+echo "Number of files to create:"
+read file_count
+
+echo "Enter $file_count numbers"
+i=1
+while [ $i -le $file_count ]
+    do
+    read number
+    if [[ "${number}" =~ '^[0-9]+$' ]]; then
+    echo INVALID
+    echo "Please enter a valid number [0-9]:"
+    else
+    underscore="_"
+    filename="$prefix$underscore$number"
+    touch $filename
+    ((i++))
+    fi
+    done
+
+
+
+
 echo "Files Created"
 ls *.txt
 echo ""
 
 
-echo ""
-echo "Files Renamed"
-ls *.txt
-echo ""
+# echo ""
+# echo "Files Renamed"
+# ls *.txt
+# echo ""

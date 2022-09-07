@@ -13,4 +13,7 @@ echo "Printing system call report"
 gcc -std=c99 pid_checker.c -o ex6
 
 # Use strace to get report
-
+./ex6
+gcc -std=c99 pid_checker.c -o ex6
+syscall_summary=$(strace -c ./ex6)
+echo $syscall_summary | sed '$d'
