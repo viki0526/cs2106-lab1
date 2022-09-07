@@ -5,8 +5,8 @@
 */
 
 // General purpose standard C lib
-#include <stdio.h>   // stdio includes printf
-#include <stdlib.h>  // stdlib includes malloc() and free()
+#include <stdio.h>  // stdio includes printf
+#include <stdlib.h> // stdlib includes malloc() and free()
 
 // User-defined header files
 #include "node.h"
@@ -41,27 +41,27 @@ int main() {
 void run_instruction(list *lst, int instr) {
     int index, data, element;
     switch (instr) {
-        case PRINT_LIST:
-            print_list(lst);
-            break;
-        case INSERT_AT:
-            scanf("%d %d", &index, &data);
-            insert_node_at(lst, index, data);
-            break;
-        case DELETE_AT:
-            scanf("%d", &index);
-            delete_node_at(lst, index);
-            break;
-        case SEARCH_LIST:
-            scanf("%d", &element);
-            int ind = search_list(lst, element);
-            print_index(ind);
-            break;
-        case REVERSE_LIST:
-            reverse_list(lst);
-            break;
-        case RESET_LIST:
-            reset_list(lst);
+    case PRINT_LIST:
+        print_list(lst);
+        break;
+    case INSERT_AT:
+        scanf("%d %d", &index, &data);
+        insert_node_at(lst, index, data);
+        break;
+    case DELETE_AT:
+        scanf("%d", &index);
+        delete_node_at(lst, index);
+        break;
+    case SEARCH_LIST:
+        scanf("%d", &element);
+        int ind = search_list(lst, element);
+        print_index(ind);
+        break;
+    case REVERSE_LIST:
+        reverse_list(lst);
+        break;
+    case RESET_LIST:
+        reset_list(lst);
     }
 }
 
@@ -81,10 +81,9 @@ void print_list(list *lst) {
     printf("]\n");
 }
 
-//Print index
-void print_index(int index)
-{
-    if(index == -2)
+// Print index
+void print_index(int index) {
+    if (index == -2)
         printf("{}\n");
     else
         printf("{%d}\n", index);

@@ -1,8 +1,8 @@
 /*************************************
 * Lab 1 Exercise 3
-* Name:
-* Student No:
-* Lab Group:
+* Name: Vikrant Prakash
+* Student No: A0227630L 
+* Lab Group: 3
 *************************************/
 
 #include "functions.h"
