@@ -2,9 +2,9 @@
 
 ####################
 # Lab 1 Exercise 7
-# Name:
-# Student No:
-# Lab Group:
+# Name: Vikrant Prakash
+# Student No: A0227630L
+# Lab Group: 3
 ####################
 
 ####################
@@ -57,12 +57,14 @@ i=1
 while [ $i -le $file_count ]
     do
     read number
-    if [[ "${number}" =~ '^[0-9]+$' ]]; then
+    re='^[0-9]+$'
+    if ! [[ $number =~ $re ]]; then
     echo INVALID
     echo "Please enter a valid number [0-9]:"
     else
     underscore="_"
-    filename="$prefix$underscore$number"
+    ext=".txt"
+    filename="$prefix$underscore$number$ext"
     touch $filename
     ((i++))
     fi
@@ -70,13 +72,32 @@ while [ $i -le $file_count ]
 
 
 
-
+echo ""
 echo "Files Created"
 ls *.txt
+
 echo ""
 
+echo "Enter NEW prefix (only alphabets):"
 
-# echo ""
-# echo "Files Renamed"
-# ls *.txt
-# echo ""
+k=0
+while [ $k -lt 5 ]
+    do
+    read new_prefix
+    if [[ "${new_prefix}" =~ [^a-zA-Z] ]]; then
+        echo INVALID
+        echo "Please enter a valid prefix [a-z A-Z]:"
+    else
+        break
+    fi
+    done
+
+for file in *.txt
+    do
+        [ -f "$file" ] || continue
+        mv "$file" "$new_prefix${file//$prefix/}"
+    done
+
+echo ""
+echo "Files Renamed"
+ls *.txt
