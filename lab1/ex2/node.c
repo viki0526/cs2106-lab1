@@ -66,13 +66,14 @@ void delete_node_at(list *lst, int index)
     {
         if ((*(lst->head)).next == NULL)
         {
+            free(lst->head);
             lst->head = NULL;
         }
         else
         {
             node *p = (*(lst->head)).next;
+            free(lst->head);
             lst->head = p;
-            // free(lst->head);
         }
     }
     else
@@ -85,11 +86,13 @@ void delete_node_at(list *lst, int index)
         }
         if ((*((*curr).next)).next == NULL)
         {
+            free((*curr).next);
             (*curr).next = NULL;
         }
         else
         {
             node *del = (*((*curr).next)).next;
+            free((*curr).next);
             (*curr).next = del;
         }
     }
