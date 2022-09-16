@@ -23,6 +23,7 @@ void insert_node_at(list *lst, int index, int data)
     if (lst->head == NULL)
     {
         lst->head = newNode;
+        //set next to null
     }
     else if (index == 0)
     {
