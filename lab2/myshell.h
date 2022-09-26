@@ -5,7 +5,8 @@
 
 #define MAX_PROCESSES 50
 
-struct PCBTable {
+struct PCBTable
+{
     pid_t pid;
     int status;   // 4: Stopped, 3: Terminating, 2: Running, 1: exited
     int exitCode; // -1 not exit, else exit code status
