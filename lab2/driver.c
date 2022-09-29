@@ -18,7 +18,7 @@ int main(int argc, char *argv[])
         __monitor_pid = strtol(argv[1], NULL, 0);
         printf("Monitoring by %d\n", __monitor_pid);
     }
-
+    
     my_init();
     process_commands(stdin);
     return 0;
@@ -27,7 +27,7 @@ int main(int argc, char *argv[])
 static void print_prompt(void)
 {
     printf("myshell> ");
-    fflush(stdout);
+    // fflush(stdout);
 }
 
 static void process_commands(FILE *file)

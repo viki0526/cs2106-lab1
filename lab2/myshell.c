@@ -18,99 +18,107 @@ typedef struct {
     struct PCBTable pcb[200];
     int in;
 } PCB_wrapper;
-int shmid, *shm;
+int shmid;
+PCB_wrapper* shm;
 
-void add_process(PCB_wrapper pcb_wrapper, pid_t p, int stat) {
-    int i = pcb_wrapper.in;
-    struct PCBTable next_table = pcb_wrapper.pcb[i];
+void add_process(PCB_wrapper* pcb_wrapper, pid_t p, int stat) {
+    int i = (*pcb_wrapper).in;
 
-    next_table.pid = p;
-    next_table.status = stat;
-    next_table.exitCode = -1;
+    ((*pcb_wrapper).pcb[i]).pid = p;
+    ((*pcb_wrapper).pcb[i]).status = stat;
+    ((*pcb_wrapper).pcb[i]).exitCode = -1;
 
-    pcb_wrapper.in++;
+    (*pcb_wrapper).in++;
 }
 
-void exit_process(PCB_wrapper pcb_wrapper, pid_t p, int exitcode) {
-
-    for(int i = 0; i < pcb_wrapper.in; i++) {
-        if (pcb_wrapper.pcb[i].pid == p) {
-            pcb_wrapper.pcb[i].status = 1; //exited
-            pcb_wrapper.pcb[i].exitCode = exitcode;
+void exit_process(PCB_wrapper* pcb_wrapper, pid_t p, int exitcode) {
+    for(int i = 0; i < (*pcb_wrapper).in; i++) {
+        if (((*pcb_wrapper).pcb[i]).pid == p) {
+            ((*pcb_wrapper).pcb[i]).status = 1; //exited
+            ((*pcb_wrapper).pcb[i]).exitCode = exitcode;
         }
     }
 }
 
-void block_process(PCB_wrapper pcb_wrapper, pid_t p) {
-    for(int i = 0; i < pcb_wrapper.in; i++) {
-        if (pcb_wrapper.pcb[i].pid == p) {
-            pcb_wrapper.pcb[i].status = 4; //stopped
+void block_process(PCB_wrapper* pcb_wrapper, pid_t p) {
+    for(int i = 0; i < (*pcb_wrapper).in; i++) {
+        if (((*pcb_wrapper).pcb[i]).pid == p) {
+            ((*pcb_wrapper).pcb[i]).status = 4; //stopped
         }
     }
 }
 
-void unblock_process(PCB_wrapper pcb_wrapper, pid_t p) {
-    for(int i = 0; i < pcb_wrapper.in; i++) {
-        if (pcb_wrapper.pcb[i].pid == p) {
-            pcb_wrapper.pcb[i].status = 2; //running
+void unblock_process(PCB_wrapper* pcb_wrapper, pid_t p) {
+    for(int i = 0; i < (*pcb_wrapper).in; i++) {
+        if (((*pcb_wrapper).pcb[i]).pid == p) {
+            ((*pcb_wrapper).pcb[i]).status = 2; //running
         }
     }
 } 
 
-void print_PCB(PCB_wrapper pcb_wrapper) {
-    for(int i = 0; i < pcb_wrapper.in; i++) {
-        printf("pid: %d\n", pcb_wrapper.pcb[i].pid);
-        printf("status: %d\n", pcb_wrapper.pcb[i].status);
-        printf("exitCode: %d\n\n", pcb_wrapper.pcb[i].exitCode);
+void print_PCB(PCB_wrapper* pcb_wrapper) {
+    for(int i = 0; i < (*pcb_wrapper).in; i++) {
+        printf("pid: %d\n", ((*pcb_wrapper).pcb[i]).pid);
+        printf("status: %d\n", ((*pcb_wrapper).pcb[i]).status);
+        printf("exitCode: %d\n\n", ((*pcb_wrapper).pcb[i]).exitCode);
     }
 }
 
 void my_init(void) {
-    PCB_wrapper* pcb_state;
-    
     // Create shared memory region
-    shmid = shmget(IPC_PRIVATE, 40, IPC_CREAT | 0600); //shmid -> shared memory id
-    shm = (int*) shmat(shmid, NULL, 0); //attach main process to shared memory
-    shm[1] = pcb_state;
-    // shm[0] = 0 for free; shm[0] = 1 for writing
-    shm[0] = 0;
+    shmid = shmget(IPC_PRIVATE, sizeof(PCB_wrapper), IPC_CREAT | 0666); //shmid -> shared memory id
+    shm = shmat(shmid, NULL, 0); //attach main process to shared memory
+    
+    //Initialise PCB_wrapper in shm with dummy values
+    shm[0].in = 0;
+    for(int i = 0; i < 200; i++) {
+        shm[0].pcb[i].pid = -1;
+        shm[0].pcb[i].status = -1;
+        shm[0].pcb[i].exitCode = -1;
+    }
+    shm[1].in = 0; //Use shm[1].in as a flag for whether the PCB is free(0) or being modified(1);
+    return;
 }
 
 void my_process_command(size_t num_tokens, char **tokens) {
     int tokenNo = (int) num_tokens;
     char* command = tokens[0];
-    PCB_wrapper info_pcb = * (PCB_wrapper*) shm[1];
 
     if (!strcmp(command, "info")) {
-        if (!strcmp(tokens[1], "0")) {
-            for (int i = 0; i < info_pcb.in; i++) {
-                if (info_pcb.pcb[i].status == 1 || info_pcb.pcb[i].status == 3) {
-                    printf("[%d] Exited %d\n", info_pcb.pcb[i].pid, info_pcb.pcb[i].exitCode);
+        while(shm[1].in == 1) {
+            if (shm[1].in == 0) {
+                shm[1].in = 1;
+                if (!strcmp(tokens[1], "0")) {
+                    for (int i = 0; i < shm[0].in; i++) {
+                        if (shm[0].pcb[i].exitCode != -1) {
+                            printf("[%d] Exited %d\n", shm[0].pcb[i].pid, shm[0].pcb[i].exitCode);
+                        } else {
+                            printf("[%d] Running\n", shm[0].pcb[i].pid);
+                        }
+                    }
+                } else if(!strcmp(tokens[1], "1")) {
+                    int exitCount = 0;
+                    for (int i = 0; i < shm[0].in; i++) {
+                        if (shm[0].pcb[i].exitCode != 1) {
+                            exitCount++;
+                        } 
+                    }
+                    printf("Total exited process: %d\n", exitCount);
+                } else if(!strcmp(tokens[1], "2")) {
+                    int runningCount = 0;
+                    for (int i = 0; i < shm[0].in; i++) {
+                        if (shm[0].pcb[i].status == 2) {
+                            runningCount++;
+                        } 
+                    }
+                    printf("Total running process: %d\n", runningCount);
                 } else {
-                    printf("[%d] Running\n", info_pcb.pcb[i].pid);
+                    fprintf(stderr, "Wrong command\n");
                 }
+                shm[1].in = 0;
+                return;
             }
-
-        } else if(!strcmp(tokens[1], "1")) {
-            int exitCount = 0;
-            for (int i = 0; i < info_pcb.in; i++) {
-                if (info_pcb.pcb[i].status == 1 || info_pcb.pcb[i].status == 3) {
-                    exitCount++;
-                } 
-            }
-            printf("Total exited process: %d\n", exitCount);
-        } else if(!strcmp(tokens[1], "2")) {
-            int runningCount = 0;
-            for (int i = 0; i < info_pcb.in; i++) {
-                if (info_pcb.pcb[i].status == 2 || info_pcb.pcb[i].status == 4) {
-                    runningCount++;
-                } 
-            }
-            printf("Total running process: %d\n", runningCount);
-        } else {
-            fprintf(stderr, "Wrong command\n");
         }
-        return;
     } 
 
     // If last string is "&" remove it from the arguments
@@ -120,19 +128,17 @@ void my_process_command(size_t num_tokens, char **tokens) {
         w = 0;
     }
 
-    pid_t curr_pid = getpid();
     // Fork child process
     pid_t childpid = fork();
 
     if (childpid == 0) {
         // Attach to shared memory in child process
-        shm = (int*)shmat( shmid, NULL, 0);
-        PCB_wrapper child_pcb = * (PCB_wrapper*) shm[1];
+        PCB_wrapper* shm1 = shmat( shmid, NULL, 0);
         while(0 == 0) {
-            if (shm[0] == 0) {
-                shm[0] == 1;
-                add_process(child_pcb, childpid, 2);
-                shm[0] == 0;
+            if (shm1[1].in == 0) {
+                shm1[1].in == 1;
+                add_process(&shm1[0], childpid, 2);
+                shm1[1].in == 0;
                 break;
             }
         }
@@ -140,10 +146,10 @@ void my_process_command(size_t num_tokens, char **tokens) {
         //returns if exec throws error
         fprintf(stderr, "%s not found\n", command);
         while(0 == 0) {
-            if (shm[0] == 0) {
-                shm[0] == 1;
-                exit_process(child_pcb, childpid, 1);
-                shm[0] == 0;
+            if (shm1[1].in == 0) {
+                shm1[1].in == 1;
+                exit_process(&shm1[0], childpid, 1);
+                shm1[1].in == 0;
                 break;
             }
         }
@@ -157,19 +163,17 @@ void my_process_command(size_t num_tokens, char **tokens) {
     } else {
         printf("Child [%d] in background\n", childpid);
     }
-    
     return;
 }
 
 void my_quit(void) {
     pid_t curr_pid = getpid();
-    PCB_wrapper final_pcb = * (PCB_wrapper*) shm[1];
-    for(int i = 0; i < final_pcb.in; i++) { 
-        final_pcb.pcb[i].status = 3; //terminated
-        final_pcb.pcb[i].exitCode = 143; //SIGTERM
-        if ((final_pcb.pcb[i].pid != curr_pid) && ((final_pcb.pcb[i].status == 4) || (final_pcb.pcb[i].status == 2))) {
-            printf("Killing [%d]", final_pcb.pcb[i].pid);
-            kill(final_pcb.pcb[i].pid, SIGTERM);
+    for(int i = 0; i < shm[0].in; i++) { 
+        shm[0].pcb[i].status = 3; //terminated
+        shm[0].pcb[i].exitCode = 143; //SIGTERM
+        if ((shm[0].pcb[i].pid != curr_pid) && ((shm[0].pcb[i].status == 4) || (shm[0].pcb[i].status == 2))) {
+            printf("Killing [%d]", shm[0].pcb[i].pid);
+            kill(shm[0].pcb[i].pid, SIGTERM);
         }
     }
     printf("Killing [%d]\n", curr_pid);
