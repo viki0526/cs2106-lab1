@@ -15,15 +15,23 @@
 #include <sys/shm.h>
 #include <sys/wait.h>
 
+struct PCBTable1
+{
+    pid_t pid;
+    pid_t ppid;
+    int status;   // 4: Stopped, 3: Terminating, 2: Running, 1: exited
+    int exitCode; // -1 not exit, else exit code status
+};
+
 typedef struct {
-    struct PCBTable pcb[200];
+    struct PCBTable1 pcb[200];
     int in;
     int flag;
 } PCB_wrapper;
 int shmid;
 PCB_wrapper* shm;
 
-void add_process(PCB_wrapper* pcb_wrapper, pid_t p, int stat) {
+void add_process(PCB_wrapper* pcb_wrapper, pid_t p, int stat, pid_t pp) {
     int i = (*pcb_wrapper).in;
     while(1) {
         if ((*pcb_wrapper).flag == 0) {
@@ -31,6 +39,7 @@ void add_process(PCB_wrapper* pcb_wrapper, pid_t p, int stat) {
             ((*pcb_wrapper).pcb[i]).pid = p;
             ((*pcb_wrapper).pcb[i]).status = stat;
             ((*pcb_wrapper).pcb[i]).exitCode = -1;
+            ((*pcb_wrapper).pcb[i]).ppid = pp;
             (*pcb_wrapper).flag = 0;
             break;
         }
@@ -90,9 +99,19 @@ int running(PCB_wrapper* pcb_wrapper, pid_t p) {
     return 0;
 }
 
+pid_t getpp(PCB_wrapper* pcb_wrapper, pid_t p) {
+    for(int i = 0; i < (*pcb_wrapper).in; i++) {
+        if (((*pcb_wrapper).pcb[i].pid == p)) {
+            return (*pcb_wrapper).pcb[i].ppid;
+        }
+    }
+    return 0;
+}
+
 void print_PCB(PCB_wrapper* pcb_wrapper) {
     for(int i = 0; i < (*pcb_wrapper).in; i++) {
         printf("pid: %d\n", ((*pcb_wrapper).pcb[i]).pid);
+        printf("ppid: %d\n", ((*pcb_wrapper).pcb[i]).ppid);
         printf("status: %d\n", ((*pcb_wrapper).pcb[i]).status);
         printf("exitCode: %d\n\n", ((*pcb_wrapper).pcb[i]).exitCode);
     }
@@ -106,6 +125,7 @@ void my_init(void) {
     shm[0].in = 0;
     for(int i = 0; i < 200; i++) {
         shm[0].pcb[i].pid = -1;
+        shm[0].pcb[i].ppid = -1;
         shm[0].pcb[i].status = -1;
         shm[0].pcb[i].exitCode = -1;
     }
@@ -118,6 +138,8 @@ void my_process_command(size_t num_tokens, char **tokens) {
     int tokenNo = (int) num_tokens;
     char* command = tokens[0];
 
+    pid_t parentpid = getpid();
+
     if (!strcmp(command, "wait")) {
         if (tokens[1] == NULL) {
             fprintf(stderr, "Wrong command\n");
@@ -125,7 +147,8 @@ void my_process_command(size_t num_tokens, char **tokens) {
             pid_t pid_arg = strtol(tokens[1], NULL, 0);
             if (running(&shm[0], pid_arg)) {
                 int status;
-                waitpid(pid_arg, &status, 0);
+                printf("Waiting for %d\n", pid_arg);
+                waitpid(getpp(&shm[0], pid_arg), &status, 0);
             }
         }
         return;
@@ -183,7 +206,7 @@ void my_process_command(size_t num_tokens, char **tokens) {
                         terminatingCount++;
                     } 
                 }
-                printf("Total running process: %d\n", terminatingCount);
+                printf("Total terminating process: %d\n", terminatingCount);
             } else {
                 fprintf(stderr, "Wrong command\n");
             }
@@ -198,51 +221,71 @@ void my_process_command(size_t num_tokens, char **tokens) {
         w = 0;
     }
 
+    // Create fd and pipe to pass grandchild pid to parent 
+    pid_t fd[2];
+    if (pipe(fd) == -1) {
+        perror("Error occured with opening pipe");
+        exit(1);
+    } 
+
     // Fork child process
     pid_t childpid = fork();
 
     if (childpid == 0) {
-        // Attach to shared memory in child process
-        PCB_wrapper* shm1 = shmat(shmid, NULL, 0);
-        add_process(&shm1[0], getpid(), 2);
-        
-        
-        pid_t curr_pid = getpid();
+        pid_t childpid = getpid();
         pid_t grandchildpid = fork();
-        //Run exec in grandchild process so that exit can be logged
+
+        //Run exec in grandchild process
         if (grandchildpid == 0) {
             execvp(command, tokens);
-            // fprintf(stderr, "%s not found\n", command);
-            // // PCB_wrapper* shm2 = shmat(shmid, NULL, 0);
-            // // exit_process(&shm2[0], curr_pid, 127);
             exit(127); //command not found
         }
+        //Wait and log exitcode in child process
         else {
+            // Attach to shared memory
+            PCB_wrapper* shm1 = shmat(shmid, NULL, 0);
+            add_process(&shm1[0], grandchildpid, 2, getpid());
+            // Write grandchild pid to pipe
+            close(fd[0]);
+            write(fd[1], &grandchildpid, sizeof(pid_t));
+            close(fd[1]);
+
+            //Wait for grandchild to exit
             int status;
             if (waitpid(grandchildpid, &status, 0) == -1) {
                 perror("waitpid failed");
                 exit(1);
             }
-
-            if (WIFEXITED(status)) {
-                const int exit_code = WEXITSTATUS(status);
-                // printf("exit code: %d\n", exit_code);
-                if (exit_code == 127) {
-                    fprintf(stderr, "%s not found\n", command);
-                } 
-                exit_process(&shm1[0], curr_pid, exit_code);
-                exit(0);
+            //Log exit/signal code to PCB
+            else {
+                if (WIFEXITED(status)) {
+                    const int exit_code = WEXITSTATUS(status);
+                    if (exit_code == 127) {
+                        fprintf(stderr, "%s not found\n", command);
+                    } 
+                    exit_process(&shm1[0], grandchildpid, exit_code);
+                    exit(0);
+                } else if(WIFSIGNALED(status)) {
+                    exit_process(&shm1[0], grandchildpid, WTERMSIG(status));
+                    exit(0);
+                } else {
+                    perror("Undefined exit");
+                }
             }
         }   
-    } 
-    
-    // Block current process and wait for child process to exit if wait == 1
-    // Otherwise print "Child [%d] in background" and exit
-    if(w == 1) {
-        wait(NULL);
     } else {
-        printf("Child [%d] in background\n", childpid);
-    }
+        // Block current process and wait for child process to exit if wait == 1
+        // Otherwise print "Child [%d] in background" and exit
+        if(w == 1) {
+            wait(NULL);
+        } else {
+            close(fd[1]);
+            pid_t message;
+            read(fd[0], &message, sizeof(pid_t));
+            close(fd[0]);
+            printf("Child [%d] in background\n", message);
+        }
+    } 
     return;
 }
 
