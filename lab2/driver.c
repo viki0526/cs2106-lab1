@@ -12,8 +12,7 @@ static size_t tokenise(char *const line, char ***tokens);
 
 pid_t __monitor_pid = 0;
 
-int main(int argc, char *argv[])
-{
+int main(int argc, char *argv[]) {
     if (argc > 1) {
         __monitor_pid = strtol(argv[1], NULL, 0);
         printf("Monitoring by %d\n", __monitor_pid);
@@ -24,14 +23,12 @@ int main(int argc, char *argv[])
     return 0;
 }
 
-static void print_prompt(void)
-{
+static void print_prompt(void) {
     printf("myshell> ");
     // fflush(stdout);
 }
 
-static void process_commands(FILE *file)
-{
+static void process_commands(FILE *file) {
     bool exiting = false;
     char *line = NULL;
     size_t line_size = 0;

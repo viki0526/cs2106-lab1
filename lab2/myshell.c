@@ -14,6 +14,7 @@
 #include <unistd.h>
 #include <sys/shm.h>
 #include <sys/wait.h>
+#include<fcntl.h> 
 
 struct PCBTable1
 {
@@ -136,7 +137,75 @@ void my_init(void) {
 
 void my_process_command(size_t num_tokens, char **tokens) {
     int tokenNo = (int) num_tokens;
+    char *cmd_tokens[100];
+
+    int count = 0; 
+    for (int i = 0; i < tokenNo; i++) {
+        if (tokens[i] == NULL) {
+            cmd_tokens[count] = NULL;
+            my_process_command_wrapped((size_t) count + 1, cmd_tokens);
+            break;
+        } else if (!strcmp(tokens[i], ";")) {
+            // printf(";\n");
+            cmd_tokens[count] = NULL;
+            my_process_command_wrapped((size_t) count + 1, cmd_tokens);
+            count = 0;
+        } else {
+            // printf("I'm at else\n");
+            cmd_tokens[count] = tokens[i];
+            count++;
+        } 
+    }
+    return;
+}
+
+void my_process_command_wrapped(size_t num_tokens, char **full_tokens) {
+    int tokenNo = (int) num_tokens;
+    char* tokens[100]; //space for array of 100 tokens
+    int pipeIndex = 0;
+    //Fill up cmd_tokens with the command and arguments and null-terminate
+    for (int i = 0; i < num_tokens; i++) {
+        if (full_tokens[i] == NULL) {
+            tokens[i] = NULL;
+            break;
+        } else if (!strcmp(full_tokens[i], "<") || !strcmp(full_tokens[i], ">") || !strcmp(full_tokens[i], "2>")) {
+            tokens[i] = NULL;
+            tokenNo = i + 1;
+            pipeIndex = i;
+            break;
+        } else {
+            tokens[i] = full_tokens[i];
+        }
+    }
+
+    // for (int i = 0; i < tokenNo; i++) {
+    //     if (tokens[i] != NULL) {
+    //         printf("%s\n", tokens[i]);
+    //     }
+    // }
+
+    //use tokens and tokenNo
     char* command = tokens[0];
+
+    //Strings inputFile, outputFile and errorFile are assigned if present in the command
+    char* inputFile = NULL;
+    char* outputFile = NULL;
+    char* errorFile = NULL;
+    if (pipeIndex > 0) {
+        for (int i = pipeIndex; i < num_tokens; i++) {
+            if (full_tokens[i] == NULL) {
+                break;
+            } else if (!strcmp(full_tokens[i], "<") && full_tokens[i + 1] != NULL) {
+                inputFile = full_tokens[i + 1];
+            } else if (!strcmp(full_tokens[i], ">") && full_tokens[i + 1] != NULL) {
+                outputFile = full_tokens[i + 1];
+            } else if (!strcmp(full_tokens[i], "2>") && full_tokens[i + 1] != NULL) {
+                errorFile = full_tokens[i + 1];
+            }
+        }
+    }
+   
+
 
     pid_t parentpid = getpid();
 
@@ -237,6 +306,33 @@ void my_process_command(size_t num_tokens, char **tokens) {
 
         //Run exec in grandchild process
         if (grandchildpid == 0) {
+            if (inputFile != NULL) {
+                int infd = open(inputFile, O_RDONLY, S_IRUSR|S_IWUSR);
+                if (infd == -1) {
+                    fprintf(stderr, "%s does not exist\n", inputFile);
+                    exit(1);
+                } else {
+                    dup2(infd, 0);
+                }
+            }
+            if (outputFile != NULL) {
+                int outfd = open(outputFile, O_CREAT|O_WRONLY|O_TRUNC, S_IRUSR|S_IWUSR);
+                if (outfd == -1) {
+                    perror("Error stdout opening file");
+                    exit(1);
+                } else {
+                    dup2(outfd, 1);
+                }
+            }
+            if (errorFile != NULL) {
+                int errfd = open(errorFile, O_CREAT|O_WRONLY|O_TRUNC, S_IRUSR|S_IWUSR);
+                if (errfd == -1) {
+                    perror("Error stderr opening file");
+                    exit(1);
+                } else {
+                    dup2(errfd, 2);
+                }
+            }
             execvp(command, tokens);
             exit(127); //command not found
         }
