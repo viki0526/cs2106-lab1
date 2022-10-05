@@ -14,7 +14,7 @@
 #include <unistd.h>
 #include <sys/shm.h>
 #include <sys/wait.h>
-#include<fcntl.h> 
+#include <fcntl.h> 
 
 struct PCBTable1
 {
@@ -73,6 +73,22 @@ void terminating_process(PCB_wrapper* pcb_wrapper, pid_t p) {
             for(int i = 0; i < (*pcb_wrapper).in; i++) {
                 if (((*pcb_wrapper).pcb[i]).pid == p) {
                     ((*pcb_wrapper).pcb[i]).status = 3; //terminating
+                }
+            }
+            (*pcb_wrapper).flag = 0;
+            break;
+        }
+    }
+    return;
+}
+
+void remove_process(PCB_wrapper* pcb_wrapper, pid_t p) {
+    while(1) {
+        if ((*pcb_wrapper).flag == 0) {
+            (*pcb_wrapper).flag = 1;
+            for(int i = 0; i < (*pcb_wrapper).in; i++) {
+                if (((*pcb_wrapper).pcb[i]).pid == p) {
+                    ((*pcb_wrapper).pcb[i]).status = -1; //remove
                 }
             }
             (*pcb_wrapper).flag = 0;
@@ -178,14 +194,9 @@ void my_process_command_wrapped(size_t num_tokens, char **full_tokens) {
         }
     }
 
-    // for (int i = 0; i < tokenNo; i++) {
-    //     if (tokens[i] != NULL) {
-    //         printf("%s\n", tokens[i]);
-    //     }
-    // }
-
     //use tokens and tokenNo
     char* command = tokens[0];
+    int w = 1;
 
     //Strings inputFile, outputFile and errorFile are assigned if present in the command
     char* inputFile = NULL;
@@ -201,11 +212,11 @@ void my_process_command_wrapped(size_t num_tokens, char **full_tokens) {
                 outputFile = full_tokens[i + 1];
             } else if (!strcmp(full_tokens[i], "2>") && full_tokens[i + 1] != NULL) {
                 errorFile = full_tokens[i + 1];
-            }
+            } else if (!strcmp(full_tokens[i], "&") && full_tokens[i + 1] == NULL) {
+                w = 0;
+            } 
         }
     }
-   
-
 
     pid_t parentpid = getpid();
 
@@ -216,7 +227,6 @@ void my_process_command_wrapped(size_t num_tokens, char **full_tokens) {
             pid_t pid_arg = strtol(tokens[1], NULL, 0);
             if (running(&shm[0], pid_arg)) {
                 int status;
-                printf("Waiting for %d\n", pid_arg);
                 waitpid(getpp(&shm[0], pid_arg), &status, 0);
             }
         }
@@ -283,8 +293,16 @@ void my_process_command_wrapped(size_t num_tokens, char **full_tokens) {
         return;
     } 
 
+    // for (int i = 0; i < num_tokens; i++) {
+    //     if(full_tokens[i] == NULL) {
+    //         printf("NULL\n");
+    //         break;
+    //     } 
+    //     printf("%s\n", full_tokens[i]);
+    // }
+
     // If last string is "&" remove it from the arguments
-    int w = 1;
+    
     if (!strcmp(tokens[tokenNo - 2], "&")) {
         tokens[tokenNo - 2] = NULL;
         w = 0;
@@ -358,6 +376,8 @@ void my_process_command_wrapped(size_t num_tokens, char **full_tokens) {
                     const int exit_code = WEXITSTATUS(status);
                     if (exit_code == 127) {
                         fprintf(stderr, "%s not found\n", command);
+                        remove_process(&shm1[0], grandchildpid);
+                        exit(1);
                     } 
                     exit_process(&shm1[0], grandchildpid, exit_code);
                     exit(0);
@@ -373,7 +393,11 @@ void my_process_command_wrapped(size_t num_tokens, char **full_tokens) {
         // Block current process and wait for child process to exit if wait == 1
         // Otherwise print "Child [%d] in background" and exit
         if(w == 1) {
-            wait(NULL);
+            int st;
+            if (waitpid(childpid, &st, 0) == -1) {
+                perror("waitpid failed");
+                exit(1);
+            }
         } else {
             close(fd[1]);
             pid_t message;

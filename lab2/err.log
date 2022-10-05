@@ -1,2 +1,2 @@
-sleep: invalid time interval ‘notanum’
-Try 'sleep --help' for more information.
+/bin/sleep: invalid time interval ‘notanumber’
+Try '/bin/sleep --help' for more information.
