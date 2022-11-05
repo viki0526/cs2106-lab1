@@ -87,7 +87,7 @@ typedef struct ballinfo {
 static void *run_ball(void *context) {
     ballinfo *info = context;
     busywaiter_ball_wait(info->waiter);
-    info->other_id = pack_ball(info->my_colour, info->my_id);
+    info->other_id = pack_ball(info->my_colour, info->my_id); //function called here
     pthread_mutex_lock(info->jmutex);
     info->next = *(info->jlist);
     *(info->jlist) = info;
