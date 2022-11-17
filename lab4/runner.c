@@ -274,8 +274,9 @@ int main(int argc, char *argv[])
             char *write_ptr = zc_write_start(zcfile, write_size);
             
             FAIL_IF(!write_ptr, "zc_write_start failed - returned NULL\n");
-            memcpy(write_ptr, randdata + 1048576 + offset, write_size);
-            printf("write_start done\n"); //test
+
+            memcpy(write_ptr, randdata + 1048576 + offset, write_size); //Write line
+            
             zc_write_end(zcfile);
 
             offset += write_size;
@@ -286,9 +287,12 @@ int main(int argc, char *argv[])
                         expected_file_size,
                     "fread returned wrong size - did zc_write cause file to "
                     "have wrong length?\n");
-            // file1[0:offset) == randdata[1048576:1048576+offset)
-            // file1[offset:expected_file_size) ==
-            // randdata[offset:expected_file_size)
+
+            // printf("1st: %d\n", memcmp(scratch, randdata + 1048576, offset));
+            // printf("2nd: %d\n", memcmp(scratch + offset, randdata + offset,
+            //                    expected_file_size - offset));
+            // printf("offset: %ld\n", offset);
+            
             FAIL_IF(memcmp(scratch, randdata + 1048576, offset) ||
                         memcmp(scratch + offset, randdata + offset,
                                expected_file_size - offset),
