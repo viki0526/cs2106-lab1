@@ -10,6 +10,8 @@
 #include <stdlib.h>
 #include <sys/mman.h>
 #include <error.h>
+#include <string.h>
+#include <pthread.h>
 
 
 // The zc_file struct is analogous to the FILE struct that you get from fopen.
@@ -18,6 +20,7 @@ struct zc_file {
     int fileDesc;
     char* memoryFile;
     size_t offset; 
+    pthread_mutex_t mutex;
 };
 
 
@@ -114,8 +117,9 @@ char* zc_write_start(zc_file *file, size_t size) {
 }
 
 void zc_write_end(zc_file *file) {
-    // To implement
-    
+    if (msync(file->memoryFile, file->fileSize, 0) != 0) {
+        perror("msync failed");
+    }
 }
 
 /**************
@@ -131,6 +135,7 @@ off_t zc_lseek(zc_file *file, long offset, int whence) {
         return file->offset; 
     } else if (whence == SEEK_END){
         file->offset = (size_t) file->fileSize + offset;
+        return file->offset;
     } else {
         return -1;
     }
@@ -141,6 +146,19 @@ off_t zc_lseek(zc_file *file, long offset, int whence) {
  **************/
 
 int zc_copyfile(const char *source, const char *dest) {
-    // To implement
-    return -1;
+    zc_file* sourceFile = zc_open(source);
+    zc_file* destFile = zc_open(dest);
+
+    char* readPointer = zc_read_start(sourceFile, &(sourceFile->fileSize));
+    char* writePointer = zc_write_start(destFile, sourceFile->fileSize);
+
+    memcpy(writePointer, readPointer, sourceFile->fileSize);
+    
+    zc_read_end(sourceFile);
+    zc_write_end(destFile);
+
+    zc_close(sourceFile);
+    zc_close(destFile);
+
+    return 0;
 }

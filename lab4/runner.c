@@ -275,7 +275,7 @@ int main(int argc, char *argv[])
             
             FAIL_IF(!write_ptr, "zc_write_start failed - returned NULL\n");
 
-            memcpy(write_ptr, randdata + 1048576 + offset, write_size); //Write line
+            memcpy(write_ptr, randdata + 1048576 + offset, write_size);
             
             zc_write_end(zcfile);
 
