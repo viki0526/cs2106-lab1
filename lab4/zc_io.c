@@ -20,7 +20,8 @@ struct zc_file {
     int fileDesc;
     char* memoryFile;
     size_t offset; 
-    pthread_mutex_t mutex;
+    pthread_mutex_t* readMutex;
+    pthread_mutex_t* writeMutex;
 };
 
 
@@ -51,13 +52,13 @@ zc_file* zc_open(const char *path) {
         RAM_file = (char*) mmap(NULL, sb.st_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
     }
 
-    
-
     zc_file* file = (zc_file*) malloc(sizeof(zc_file));
     file->fileDesc = fd;
     file->fileSize = sb.st_size;
     file->memoryFile = RAM_file;
     file->offset = 0;
+    // pthread_mutex_init(file->readMutex, NULL);
+    // pthread_mutex_init(file->writeMutex, NULL);
 
     return file;
 }
@@ -72,10 +73,9 @@ int zc_close(zc_file *file) {
 }
 
 const char* zc_read_start(zc_file *file, size_t *size) {
+
     if ((file->offset + *size) > file->fileSize) {
         *size = file->fileSize - file->offset;
-        // file->memoryFile = (char*) mremap((void*)file->memoryFile, file->fileSize, file->offset + *size, 0);
-        // file->fileSize = file->offset + *size;
     }
     const char* res = file->memoryFile + file->offset;
     file->offset = file->offset + *size;
@@ -147,18 +147,35 @@ off_t zc_lseek(zc_file *file, long offset, int whence) {
 
 int zc_copyfile(const char *source, const char *dest) {
     zc_file* sourceFile = zc_open(source);
+    if (!sourceFile) {
+        return -1;
+    }
     zc_file* destFile = zc_open(dest);
+    if (!destFile) {
+        return -1;
+    }
 
     char* readPointer = zc_read_start(sourceFile, &(sourceFile->fileSize));
+    if (!readPointer) {
+        return -1;
+    }
+
     char* writePointer = zc_write_start(destFile, sourceFile->fileSize);
+    if (!writePointer) {
+        return -1;
+    }
 
     memcpy(writePointer, readPointer, sourceFile->fileSize);
     
     zc_read_end(sourceFile);
     zc_write_end(destFile);
 
-    zc_close(sourceFile);
-    zc_close(destFile);
+    if (zc_close(sourceFile) != 0) {
+        return -1;
+    }
+    if (zc_close(destFile) != 0) {
+        return -1;
+    }
 
     return 0;
 }
